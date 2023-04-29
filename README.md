@@ -2,4 +2,5 @@
 
 https://tz-overlap.vercel.app/
 
-![timezone-overlap](https://user-images.githubusercontent.com/2034704/235303214-1ba1dc75-33d3-4701-b605-383b58eb1844.gif)
+
+![timezone-overlap-share](https://user-images.githubusercontent.com/2034704/235303351-b3436c07-e215-4bde-98d9-0674ebddfddf.gif)
