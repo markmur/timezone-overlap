@@ -52,9 +52,9 @@ function getHourComparison(
         time1,
         time2,
         time1.getHours() >= startTime &&
-          time1.getHours() <= endTime &&
+          time1.getHours() <= endTime - 1 &&
           time2.getHours() >= startTime &&
-          time2.getHours() <= endTime,
+          time2.getHours() <= endTime - 1,
       ]);
     }
 
@@ -189,7 +189,7 @@ function App() {
   };
 
   const withinShift = (hour: number) => {
-    return hour >= startTime && hour <= endTime;
+    return hour >= startTime && hour <= endTime - 1;
   };
 
   const handleAddTimezone = () => {
@@ -304,7 +304,9 @@ function App() {
                 >
                   <p>{formatHour(time1, timeFormat)}</p>
                 </div>
-                {time1.getHours() === endTime && <sup className="end">end</sup>}
+                {time1.getHours() === endTime - 1 && (
+                  <sup className="end">end</sup>
+                )}
               </div>
             ))}
           </div>
