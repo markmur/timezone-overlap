@@ -20,12 +20,6 @@
   grid-template-rows: auto;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
 main {
   font-size: calc(10px + 2vmin);
   color: white;
@@ -63,11 +57,19 @@ h2 {
   .hugeInput {
     font-size: 13px;
   }
+
+  .hideOnMobile {
+    display: none;
+  }
 }
 
 @media (max-width: 768px) {
   .hugeInput {
     font-size: 3rem;
+  }
+
+  .hideOnMobile {
+    display: none;
   }
 }
 
@@ -150,7 +152,7 @@ footer {
   font-size: 14px;
   background: var(--dark);
   color: white;
-  padding: 1em 1.5em;
+  padding: 1em 1.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;

@@ -318,27 +318,31 @@ function App() {
         </small>
 
         <div className="flex">
-          <small>Start:</small>
-          <input
-            type="time"
-            placeholder="Start"
-            value={`${String(startTime).padStart(2, "0")}:00`}
-            min="1"
-            max="24"
-            onChange={handleStartTimeChange}
-          />
+          <div className="hideOnMobile">
+            <small>Start:</small>
+            <input
+              type="time"
+              placeholder="Start"
+              value={`${String(startTime).padStart(2, "0")}:00`}
+              min="1"
+              max="24"
+              onChange={handleStartTimeChange}
+            />
+          </div>
 
-          <small>End:</small>
-          <input
-            type="time"
-            placeholder="End"
-            value={`${String(endTime).padStart(2, "0")}:00`}
-            min="1"
-            max="24"
-            onChange={handleEndTimeChange}
-          />
+          <div className="hideOnMobile">
+            <small>End:</small>
+            <input
+              type="time"
+              placeholder="End"
+              value={`${String(endTime).padStart(2, "0")}:00`}
+              min="1"
+              max="24"
+              onChange={handleEndTimeChange}
+            />
+          </div>
 
-          <div className="switch">
+          <div className="switch hideOnMobile">
             <button
               onClick={handleTimeFormat("12")}
               className={cx({ selected: timeFormat === "12" })}
