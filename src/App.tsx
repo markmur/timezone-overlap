@@ -3,14 +3,10 @@ import { rawTimeZones } from "@vvo/tzdb";
 import Fuse from "fuse.js";
 import cx from "classnames";
 
-import {
-  useCallback,
-  useRef,
-  useEffect,
-  useMemo,
-  useState,
-  ChangeEvent,
-} from "react";
+import { useCallback, useRef, useMemo, useState, ChangeEvent } from "react";
+
+import useLocalStorageState from "./hooks/use-local-storage";
+import useAutoAdjustFontSize from "./hooks/use-auto-adjust-text";
 
 const fuse = new Fuse(rawTimeZones, {
   keys: ["countryName", "mainCities"],
@@ -19,11 +15,10 @@ const fuse = new Fuse(rawTimeZones, {
 
 type TimeFormat = "12" | "24";
 
-function getHourComparisonV2(
+function getHourComparison(
   timeZones: string[],
   startTime: number,
-  endTime: number,
-  timeFormat: TimeFormat = "24"
+  endTime: number
 ): [Date, Date, boolean][][] {
   // Convert the hour values to Date objects in the local time zone
   const startDate = new Date();
@@ -90,23 +85,50 @@ function formatHour(num: Date, timeFormat: TimeFormat = "24"): string {
   return `${hour}${ampm?.toLowerCase() ?? ""}`;
 }
 
-const newTimezones = ["New York", "Colorado", "Vancouver"];
+function shuffle<T>(array: T[]): T[] {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+const newTimezones = shuffle(rawTimeZones.flatMap((zone) => zone.mainCities));
+
+function getBaseTimezone(fallback: string) {
+  const [, city] = Intl.DateTimeFormat().resolvedOptions().timeZone?.split("/");
+
+  return city ?? fallback;
+}
+
+function getRemValue(N: number): number {
+  const baseRemValue = 4; // define the base rem value
+  const remValue = baseRemValue - N * 0.25; // decrease the rem value by 0.25 for each increment of N
+  return remValue;
+}
 
 function App() {
-  const [startTime, setStartTime] = useState(9);
-  const [endTime, setEndTime] = useState(18);
-  const [start, setState] = useState("Dublin");
-  const [timezones, setTimezones] = useState<string[]>(["Berlin", "Toronto"]);
-  const [timeFormat, setTimeFormat] = useState<TimeFormat>("24");
+  // Get users timezone or fallback to Dublin
+  const baseTimezone = getBaseTimezone("Dublin");
+  const [startTime, setStartTime] = useLocalStorageState("startTime", 9);
+  const [endTime, setEndTime] = useLocalStorageState("endTime", 18);
+  const [start, setState] = useLocalStorageState("base", baseTimezone);
+  const [timezones, setTimezones] = useLocalStorageState<string[]>(
+    "timezones",
+    ["Berlin", "Toronto"]
+  );
+  const [timeFormat, setTimeFormat] = useLocalStorageState<TimeFormat>(
+    "timeFormat",
+    "24"
+  );
+
+  // private
   const [hover, setHover] = useState<number | null>(null);
 
-  const findSelectedTimezone = useCallback(
-    (value: string) => {
-      if (value.length < 2) return;
-      return fuse.search(value) ?? [];
-    },
-    [fuse]
-  );
+  const findSelectedTimezone = useCallback((value: string) => {
+    if (value.length < 2) return;
+    return fuse.search(value) ?? [];
+  }, []);
 
   const fallbackTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -114,26 +136,25 @@ function App() {
     (name: string) => {
       return findSelectedTimezone(name)?.[0]?.item;
     },
-    [fallbackTimezone, findSelectedTimezone]
+    [findSelectedTimezone]
   );
 
   const getTimezoneName = useCallback(
     (name: string) => {
       return getTimezone(name)?.name ?? fallbackTimezone;
     },
-    [fallbackTimezone, findSelectedTimezone]
+    [fallbackTimezone, getTimezone]
   );
 
   const comparison = useMemo(() => {
-    return getHourComparisonV2(
+    return getHourComparison(
       [getTimezoneName(start), ...timezones.map(getTimezoneName)],
       startTime,
-      endTime,
-      timeFormat
+      endTime
     );
-  }, [start, timezones, startTime, endTime, timeFormat]);
+  }, [start, timezones, startTime, endTime, getTimezoneName]);
 
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLInputElement>(null);
 
   // useEffect(() => {
   //   const scrollPosition =
@@ -188,15 +209,36 @@ function App() {
     setTimezones(cloned);
   };
 
+  const totalOverlap = useMemo(
+    () =>
+      Math.min(
+        ...comparison.map((items) => items.filter((x) => x[2] === true).length)
+      ),
+    [comparison]
+  );
+
+  const fontSize = useMemo(
+    () => `${getRemValue(timezones.length)}rem`,
+    [timezones]
+  );
+
   return (
     <main className="App">
-      <header className="grid">
+      <header
+        className="grid"
+        style={{
+          gridTemplateColumns: `repeat(${timezones.length + 1}, 1fr)`,
+        }}
+      >
         <div>
           <small className="subdued primary">I work in</small>
           <input
             className="hugeInput"
             placeholder="Search..."
             value={start}
+            style={{
+              fontSize,
+            }}
             onChange={(event) => {
               setState(event.target.value);
             }}
@@ -214,6 +256,9 @@ function App() {
               className="hugeInput"
               placeholder="Search..."
               value={timezone}
+              style={{
+                fontSize,
+              }}
               onChange={(event) => {
                 const cloned = [...timezones];
                 cloned.splice(i, 1, event.target.value);
@@ -224,29 +269,42 @@ function App() {
               {getTimezoneName(timezone)} ({getTimezone(timezone)?.abbreviation}
               )
             </small>
-            <button className="link" onClick={handleRemoveTimezone(i)}>
-              Remove
-            </button>
+            {timezones.length > 1 && (
+              <button className="link" onClick={handleRemoveTimezone(i)}>
+                Remove
+              </button>
+            )}
           </div>
         ))}
       </header>
 
-      <div className="content grid" ref={ref}>
+      <div
+        className="content grid"
+        ref={ref}
+        style={{
+          gridTemplateColumns: `repeat(${timezones.length + 1}, 1fr)`,
+        }}
+      >
         {comparison.map((item, i) => (
           <div key={i}>
             {item.map(([time1, time2, overlap1], i) => (
-              <div
-                key={String(time1)}
-                data-key={time1}
-                onMouseOver={handleMouseOver(i)}
-                onMouseLeave={handleMouseLeave}
-                className={cx("timeBlock", {
-                  overlap: overlap1,
-                  shift: withinShift(time1.getHours()),
-                  hover: hover === i,
-                })}
-              >
-                <p>{formatHour(time1, timeFormat)}</p>
+              <div key={String(time1)} className="block">
+                {time1.getHours() === startTime && (
+                  <sup className="start">start</sup>
+                )}
+                <div
+                  data-key={time1}
+                  onMouseOver={handleMouseOver(i)}
+                  onMouseLeave={handleMouseLeave}
+                  className={cx("timeBlock", {
+                    overlap: overlap1,
+                    shift: withinShift(time1.getHours()),
+                    hover: hover === i,
+                  })}
+                >
+                  <p>{formatHour(time1, timeFormat)}</p>
+                </div>
+                {time1.getHours() === endTime && <sup className="end">end</sup>}
               </div>
             ))}
           </div>
@@ -255,12 +313,8 @@ function App() {
 
       <footer>
         <small>
-          <strong>Total overlap:</strong>{" "}
-          {comparison.reduce(
-            (state, [, , overlap]) => (state += overlap ? 1 : 0),
-            0
-          )}{" "}
-          hours
+          <strong>Total overlap:</strong> {totalOverlap} hour
+          {totalOverlap > 1 ? "s" : ""}
         </small>
 
         <div className="flex">
