@@ -53,26 +53,6 @@ h2 {
   padding: 16px 0 0;
 }
 
-@media (max-width: 480px) {
-  .hugeInput {
-    font-size: 13px;
-  }
-
-  .hideOnMobile {
-    display: none;
-  }
-}
-
-@media (max-width: 768px) {
-  .hugeInput {
-    font-size: 3rem;
-  }
-
-  .hideOnMobile {
-    display: none;
-  }
-}
-
 .grid {
   display: grid; 
   grid-template-columns: minmax(5, 1fr); 
@@ -245,4 +225,34 @@ sup.start {
 sup.end {
   top: 0;
   transform: translateY(200%);
+}
+
+@media (max-width: 480px) {
+  .hugeInput {
+    font-size: 13px;
+  }
+
+  .hideOnMobile {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .hugeInput {
+    font-size: 2rem !important;
+    padding-top: 0;
+  }
+
+  .hideOnMobile {
+    display: none;
+  }
+
+  .subdued {
+    font-size: 11px;
+  }
+
+  button.link {
+    margin-top: 0.5em;
+    margin-bottom: 0;
+  }
 }

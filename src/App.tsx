@@ -115,7 +115,7 @@ function App() {
   const [start, setState] = useLocalStorageState("base", baseTimezone);
   const [timezones, setTimezones] = useLocalStorageState<string[]>(
     "timezones",
-    ["Berlin", "Toronto"]
+    ["Toronto"]
   );
   const [timeFormat, setTimeFormat] = useLocalStorageState<TimeFormat>(
     "timeFormat",
