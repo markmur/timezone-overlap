@@ -3,10 +3,16 @@ import { rawTimeZones } from "@vvo/tzdb";
 import Fuse from "fuse.js";
 import cx from "classnames";
 
-import { useCallback, useRef, useMemo, useState, ChangeEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useMemo,
+  useState,
+  ChangeEvent,
+} from "react";
 
 import useLocalStorageState from "./hooks/use-local-storage";
-import useAutoAdjustFontSize from "./hooks/use-auto-adjust-text";
 
 const fuse = new Fuse(rawTimeZones, {
   keys: ["countryName", "mainCities"],
@@ -15,11 +21,29 @@ const fuse = new Fuse(rawTimeZones, {
 
 type TimeFormat = "12" | "24";
 
+function getGMTOffset(timeZone: string): number {
+  const offset = Intl.DateTimeFormat("ia", {
+    timeZoneName: "shortOffset",
+    timeZone: timeZone,
+  })
+    .formatToParts()
+    .find((i) => i.type === "timeZoneName")
+    ?.value.split("GMT")?.[1];
+
+  return parseInt(offset ?? "0", 10);
+}
+
+function getTimezoneHourDifference(timezone1: string, timezone2: string) {
+  const timezone1Offset = getGMTOffset(timezone1);
+  const timezone2Offset = getGMTOffset(timezone2);
+  return timezone2Offset - timezone1Offset;
+}
+
 function getHourComparison(
   timeZones: string[],
   startTime: number,
   endTime: number
-): [Date, Date, boolean][][] {
+): [Date, Date, boolean, number][][] {
   // Convert the hour values to Date objects in the local time zone
   const startDate = new Date();
   startDate.setHours(startTime - 4);
@@ -31,12 +55,12 @@ function getHourComparison(
   endDate.setSeconds(0);
 
   // Create an array to store the hour comparison tuples for each timezone
-  const comparisons: [Date, Date, boolean][][] = [];
+  const comparisons: [Date, Date, boolean, number][][] = [];
 
   // Loop through each timezone and generate the hour comparison tuples
   for (let timeZone of timeZones) {
     // Create an empty array to store the comparison tuples for this timezone
-    const comparison: [Date, Date, boolean][] = [];
+    const comparison: [Date, Date, boolean, number][] = [];
 
     // Loop through each hour in the range of times and add a tuple to the comparison array
     for (
@@ -48,6 +72,7 @@ function getHourComparison(
       const time2 = new Date(
         time.toLocaleString("en-US", { timeZone: timeZones[0] })
       );
+      const offset = getTimezoneHourDifference(timeZone, timeZones[0]);
       comparison.push([
         time1,
         time2,
@@ -55,6 +80,7 @@ function getHourComparison(
           time1.getHours() <= endTime - 1 &&
           time2.getHours() >= startTime &&
           time2.getHours() <= endTime - 1,
+        offset,
       ]);
     }
 
@@ -93,6 +119,11 @@ function shuffle<T>(array: T[]): T[] {
   return array;
 }
 
+function compareHour(time: Date, offset: number) {
+  const currentHour = new Date().getHours();
+  return currentHour === time.getHours() + offset;
+}
+
 const newTimezones = shuffle(rawTimeZones.flatMap((zone) => zone.mainCities));
 
 function getBaseTimezone(fallback: string) {
@@ -110,6 +141,8 @@ function getRemValue(N: number): number {
 function App() {
   // Get users timezone or fallback to Dublin
   const baseTimezone = getBaseTimezone("Dublin");
+
+  // Public
   const [startTime, setStartTime] = useLocalStorageState("startTime", 9);
   const [endTime, setEndTime] = useLocalStorageState("endTime", 18);
   const [start, setState] = useLocalStorageState("base", baseTimezone);
@@ -122,8 +155,9 @@ function App() {
     "24"
   );
 
-  // private
+  // Private
   const [hover, setHover] = useState<number | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
   const findSelectedTimezone = useCallback((value: string) => {
     if (value.length < 2) return;
@@ -222,6 +256,16 @@ function App() {
     [timezones]
   );
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const percentHourComplete = (currentTime.getMinutes() / 60) * 100;
+
   return (
     <main className="App">
       <header
@@ -243,7 +287,7 @@ function App() {
               setState(event.target.value);
             }}
           />
-          <small className="subdued">
+          <small className="subdued mb">
             {getTimezoneName(start)} ({getTimezone(start)?.abbreviation})
           </small>
         </div>
@@ -265,7 +309,7 @@ function App() {
                 setTimezones(cloned);
               }}
             />
-            <small className="subdued">
+            <small className="subdued mb">
               {getTimezoneName(timezone)} ({getTimezone(timezone)?.abbreviation}
               )
             </small>
@@ -278,39 +322,50 @@ function App() {
         ))}
       </header>
 
-      <div
-        className="content grid"
-        ref={ref}
-        style={{
-          gridTemplateColumns: `repeat(${timezones.length + 1}, 1fr)`,
-        }}
-      >
-        {comparison.map((item, i) => (
-          <div key={i}>
-            {item.map(([time1, time2, overlap1], i) => (
-              <div key={String(time1)} className="block">
-                {time1.getHours() === startTime && (
-                  <sup className="start">start</sup>
-                )}
-                <div
-                  data-key={time1}
-                  onMouseOver={handleMouseOver(i)}
-                  onMouseLeave={handleMouseLeave}
-                  className={cx("timeBlock", {
-                    overlap: overlap1,
-                    shift: withinShift(time1.getHours()),
-                    hover: hover === i,
-                  })}
-                >
-                  <p>{formatHour(time1, timeFormat)}</p>
+      <div className="content">
+        <div
+          className="grid"
+          ref={ref}
+          style={{
+            gridTemplateColumns: `repeat(${timezones.length + 1}, 1fr)`,
+          }}
+        >
+          {comparison.map((item, i) => (
+            <div key={i}>
+              {item.map(([time1, time2, overlap1, offset], i) => (
+                <div key={String(time1)} className="block">
+                  {compareHour(time1, offset) && (
+                    <div
+                      className="currentTime"
+                      style={{
+                        top: `calc(${percentHourComplete}% - 4px)`,
+                      }}
+                    />
+                  )}
+
+                  {time1.getHours() === startTime && (
+                    <sup className="start">start</sup>
+                  )}
+                  <div
+                    data-key={time1}
+                    onMouseOver={handleMouseOver(i)}
+                    onMouseLeave={handleMouseLeave}
+                    className={cx("timeBlock", {
+                      overlap: overlap1,
+                      shift: withinShift(time1.getHours()),
+                      hover: hover === i,
+                    })}
+                  >
+                    <p>{formatHour(time1, timeFormat)}</p>
+                  </div>
+                  {time1.getHours() === endTime - 1 && (
+                    <sup className="end">end</sup>
+                  )}
                 </div>
-                {time1.getHours() === endTime - 1 && (
-                  <sup className="end">end</sup>
-                )}
-              </div>
-            ))}
-          </div>
-        ))}
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
 
       <footer>

@@ -27,12 +27,10 @@ main {
   height: 100vh;
 }
 
-header {
-  overflow: hidden;
-}
-
 .content {
   overflow-y: auto;
+  overflow-x: visible;
+  max-height: 100vh;
 }
 
 h2 {
@@ -104,7 +102,7 @@ h2 {
 }
 
 .mb {
-  margin-bottom: 2em;
+  margin-bottom: 1em;
 }
 
 .primary {
@@ -194,7 +192,7 @@ button.link {
   cursor: pointer;
   text-align: center;
   display: block;
-  margin: 1em auto;
+  margin: 0 auto 1em;
 }
 
 button.link:hover {
@@ -215,6 +213,28 @@ sup {
 .block {
   position: relative;
   overflow: visible
+}
+
+.currentTime {
+  position: absolute;
+  border: 1px solid lightcoral;
+  left: 0;
+  width: 100%;
+  top: 0;
+  z-index: 100;
+}
+
+.currentTime::before {
+  content: ' ';
+  position: absolute;
+  left: -3px;
+  top: 0;
+  border-radius: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translate(-50%, -50%);
+  background: lightcoral;
+  z-index: 101;
 }
 
 sup.start {
