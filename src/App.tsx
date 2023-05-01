@@ -261,6 +261,8 @@ function App() {
       setCurrentTime(new Date());
     }, 60 * 1000);
 
+    document.querySelector(".currentTime")?.scrollIntoView();
+
     return () => clearInterval(interval);
   }, []);
 

@@ -218,6 +218,7 @@ sup {
 .currentTime {
   position: absolute;
   border: 1px solid lightcoral;
+  opacity: 0.75;
   left: 0;
   width: 100%;
   top: 0;
